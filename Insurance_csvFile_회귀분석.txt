@@ -1,0 +1,67 @@
+data_2 = pd.read_csv("./insurance.csv", sep=",", header=0)
+data_2.head
+
+data_2.dtypes
+
+data_2_rev = pd.get_dummies(data_2)
+data_2_rev.head
+
+data_2_rev.dtypes
+
+def feture_scaling(df, scaling_strategy="min-max", column=None):
+    if column == None:
+        column = [column_name for column_name in df.columns]
+    for column_name in column:
+        if scaling_strategy == "min-max":
+            df[column_name] = ( df[column_name] - df[column_name].min() ) /\
+                            (df[column_name].max() - df[column_name].min()) 
+        elif scaling_strategy == "z-score":
+            df[column_name] = ( df[column_name] - \
+                               df[column_name].mean() ) /\
+                            (df[column_name].std() )
+    return df
+
+feture_scaling(data_2_rev,column=["age","bmi","children","charges","sex_female","sex_male","smoker_no","smoker_yes","region_northeast","region_northwest","region_southeast","region_southwest"])
+data_2_rev.head
+
+# x �쇱퀜�� bias �녿뒗 寃쎌슦
+x_data = data_2_rev[["age","bmi","children","sex_female","sex_male","smoker_no","smoker_yes","region_northeast","region_northwest","region_southeast","region_southwest"]]
+print(x_data.shape)
+y_data = data_2_rev["charges"]
+print(y_data.shape)
+
+with tf.Graph().as_default():
+    tf.set_random_seed(777) # seed 媛� 怨좎젙, seed 媛� 蹂�寃쏀븯硫댁꽌 珥덇린 starting point瑜� 李얠븘�� ��.
+
+    x = tf.placeholder(tf.float32, shape=[None,11]) #�덉젣�� 媛�닔�� �곴��놁쓬 x feature 媛�닔留� 3媛쒕줈 怨좎젙
+    y = tf.placeholder(tf.float32, shape=None)
+    
+    w = tf.Variable([[0,0,0,0,0,0,0,0,0,0,0]], dtype=tf.float32, name='weight') #媛�以묒튂,�ㅼ감 珥덇린媛� 0
+    b = tf.Variable(0, dtype=tf.float32, name='bias')
+    
+    y_hat = tf.matmul(w, tf.transpose(x)) + b
+    
+    loss = tf.reduce_mean(tf.square(y - y_hat)) #�붿감 �쒓낢�� �됯퇏, �숈뒿�섎뒗 湲곗��대�濡� loss function�� 援됱옣�� 以묒슂��
+    
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.05) #1e-5
+    
+    #�� �뚮씪誘명꽣 媛믪쑝濡쒕뒗 0.009300222 [array([[ 0.1885989 ,  0.20124339,  0.03794948,  0.0303045 ,  0.02820851, -0.1610755 ,  0.21959633,  0.02399818,  0.01836418,  0.00747749, 0.00867394]], dtype=float32), 0.05851283]媛� 理쒖쟻�댁엫.
+    # MLR�� hyper parameter = learning rate, epoch
+    
+    train = optimizer.minimize(loss)
+    
+    init = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init)
+        cost_history = []
+        for step in range(100000): #epoch = 100000
+            cost, hypothesis, _ = sess.run([loss, y_hat, train], feed_dict={x:x_data, y:y_data}) # cost 媛믩룄 異쒕젰�섍쾶��, train�� �꾩슂�놁쑝�� _濡� �좎뼵
+            cost_history.append(cost)
+            if(step % 5000 == 0):
+                print(step, cost, sess.run([w, b]))
+        print(step, cost, sess.run([w, b]))
+        
+        # print("Your score will be ", sess.run(y_hat, feed_dict={x:[[60,70,110],[90,100,80]]}))
+        
+        plt.plot(cost_history)
+        plt.show()

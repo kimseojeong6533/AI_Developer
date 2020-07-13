@@ -1,0 +1,60 @@
+# MNIST by SoftMax 
+import matplotlib.pyplot as plt  #소프트맥스로 분류모델, NN로 분류모델 만들어보기 
+
+
+#for i in range(5):
+#    print(mnist.train.labels[i])
+#    print(np.where(mnist.train.labels[i] == 1))
+#    plt.imshow(mnist.train.images[i].reshape(28,28), cmap='Greys')
+#    plt.show()
+    
+mnist_label=pd.DataFrame(mnist.train.labels)
+
+#mnist_image=pd.DataFrame(mnist.train.images.reshape(28,28))
+
+xArr=mnist.train.images
+yArr=mnist.train.labels
+
+#print(xArr.shape)
+
+X = tf.placeholder(tf.float32,[None,784])
+Y = tf.placeholder(tf.float32,[None,10])
+
+W=tf.Variable(tf.random_normal([784,10]), name='weight')
+b=tf.Variable(tf.random_normal([10]), name='bias')
+logits=tf.matmul(X,W)+b
+hypothesis=tf.nn.softmax(logits)
+
+
+#손실값(y-y_hat) 계산
+cost_i=tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=Y)   #소프트맥스의 엔트로피계산(손실값(y-y_hat)), 확률 계산을 해주는 함수
+cost=tf.reduce_mean(cost_i)
+optimizer=tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(cost)
+
+#소프트맥스값으로부터 accuracy도출
+prediction=tf.argmax(hypothesis,1)  #y_hat행렬에서 1번째(2차원(행 x 열)이라면 열) 차원에서 가장 큰값  -> [[0.7,0.1,0.2],...] -> [0,...]
+correct_prediction=tf.equal(prediction, tf.argmax(Y,1))   #예측값과 라벨값(실제값)과 같다면 True, 아니면, False
+accuracy=tf.reduce_mean(tf.cast(correct_prediction, tf.float32))  #True,False값을 float32형으로 바꾸고, 그것의 평균값 
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())   #세션함수를 실행하기위해 필요하 모든 변수들 초기화
+    for step in range(2000):
+        sess.run(optimizer, feed_dict={X : xArr, Y : yArr})
+        if step%200==0:
+            loss, acc, c_pred = sess.run([cost,accuracy,correct_prediction], feed_dict={X :xArr, Y :yArr})
+            print(step,loss,acc)
+            
+    pred=sess.run(prediction, feed_dict={X:xArr})
+    for p,y in zip(pred,yArr.flatten()):  #y_data의 인덱스 값을 가져옴. 
+        print('{} Prediction: {} True Y : {}'.format(p==int(y),p,int(y)))
+            
+
+#400 1.6211216 0.6954182
+#600 1.2844216 0.7505636
+#800 1.1079234 0.7789818
+#1000 0.9963011 0.7981455
+#1200 0.9180436 0.81118184
+#1400 0.8593071 0.8211455
+#1600 0.8130405 0.82925457
+#1800 0.7752971 0.83590907
+

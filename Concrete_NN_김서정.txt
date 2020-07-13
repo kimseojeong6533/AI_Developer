@@ -1,0 +1,55 @@
+#Concrete.csv
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
+f=pd.read_csv('concrete.csv') 
+df=f.copy()
+
+min_max_scaler = MinMaxScaler()  # min_max 정규화
+fitted = min_max_scaler.fit(f)
+f = min_max_scaler.transform(f)
+f = pd.DataFrame(f, columns=df.columns, index=list(df.index.values))
+f=pd.DataFrame(f)
+
+xArr=f.iloc[:,:-1]
+f['strength_cut']=pd.qcut(f.strength,q=5,labels=[1,2,3,4,5])  #수치형데이터 -> 범주형데이터
+yArr=pd.get_dummies(f['strength_cut'])  #범주형데이터 -> 더미형  # (N x 5)
+
+X = tf.placeholder(tf.float32,[None,8])
+Y = tf.placeholder(tf.float32,[None,5])
+#Y_one_hot = tf.one_hot(Y,5) #3차원의  data로 
+#Y_one_hot = tf.reshape(Y_one_hot,[-1,5])  #Y_one_hot변수의 끝 차원을 7로, 나머지 차원은 알아서 조정~
+
+
+W=tf.Variable(tf.random_normal([8,5]), name='weight')
+b=tf.Variable(tf.random_normal([5]), name='bias')
+
+layer1=tf.sigmoid(tf.matmul(X,W)+b)
+
+W2=tf.Variable(tf.random_normal([5,5]), name='weight')
+b2=tf.Variable(tf.random_normal([5]), name='bias')
+
+hypothesis=tf.sigmoid(tf.matmul(layer1,W2)+b2)
+
+cost = -tf.reduce_mean(Y*tf.log(hypothesis)+(1-Y)*tf.log(1-hypothesis))
+
+optimizer=tf.train.GradientDescentOptimizer(learning_rate=0.01).minimize(cost)
+
+
+predicted = tf.cast(hypothesis>0.5,dtype=tf.float32) 
+accuracy = tf.reduce_mean(tf.cast(tf.equal(predicted,Y),dtype=tf.float32)) 
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())   #세션함수를 실행하기위해 필요하 모든 변수들 초기화
+    for step in range(10001):
+        sess.run(optimizer, feed_dict={X : xArr, Y : yArr})
+        if step%200==0:
+            loss, acc = sess.run([cost,accuracy], feed_dict={X :xArr, Y :yArr})
+            print(step,loss,acc)
+            
+    h,c,a=sess.run([hypothesis,predicted,accuracy],feed_dict={X:xArr,Y:yArr})
+    print("\nHypothesis: ",h,
+          "\nPredicted: ",c,
+          "\nAccuracy: ",a)
